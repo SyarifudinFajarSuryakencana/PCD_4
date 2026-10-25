@@ -1,0 +1,58 @@
+import imageio.v2 as imageio
+import numpy as np
+from scipy import ndimage
+import matplotlib.pyplot as plt
+
+NAMA_FILE_GAMBAR = "gambar_asli.jpg"   # <-- ganti dengan nama file gambarmu
+
+citra_rgb = imageio.imread(NAMA_FILE_GAMBAR)
+print("Ukuran citra RGB :", citra_rgb.shape)
+
+
+R = citra_rgb[:, :, 0].astype(np.float32)
+G = citra_rgb[:, :, 1].astype(np.float32)
+B = citra_rgb[:, :, 2].astype(np.float32)
+citra_awal = (0.299 * R + 0.587 * G + 0.114 * B).astype(np.uint8)
+
+nilai_min = citra_awal.min()
+nilai_max = citra_awal.max()
+citra_kontras = ((citra_awal.astype(np.float32) - nilai_min)
+                 / (nilai_max - nilai_min) * 255).astype(np.uint8)
+
+citra_blur = ndimage.gaussian_filter(citra_kontras.astype(np.float32), sigma=1.0)
+citra_tajam = np.clip(citra_kontras.astype(np.float32)
+                      + 1.0 * (citra_kontras.astype(np.float32) - citra_blur),
+                      0, 255).astype(np.uint8)
+
+citra_halus = ndimage.median_filter(citra_tajam, size=3)
+
+def statistik(nama, citra):
+    print(f"{nama:20s} : min={citra.min():3d}, max={citra.max():3d}, "
+          f"rata-rata={citra.mean():6.2f}, std={citra.std():6.2f}")
+
+print("\nPerbandingan statistik citra:")
+statistik("Citra awal", citra_awal)
+statistik("Contrast stretching", citra_kontras)
+statistik("Unsharp masking", citra_tajam)
+statistik("Median filter", citra_halus)
+
+daftar = [
+    ("Citra Awal", citra_awal),
+    ("Contrast Stretching", citra_kontras),
+    ("Unsharp Masking", citra_tajam),
+    ("Median Filter", citra_halus),
+]
+
+fig, axes = plt.subplots(2, 4, figsize=(16, 8))
+for i, (judul, citra) in enumerate(daftar):
+    axes[0, i].imshow(citra, cmap="gray", vmin=0, vmax=255)
+    axes[0, i].set_title(judul)
+    axes[0, i].axis("off")
+    hist, _ = np.histogram(citra, bins=256, range=(0, 255))
+    axes[1, i].bar(range(256), hist, width=1.0, color="gray")
+    axes[1, i].set_title(f"Histogram {judul}")
+    axes[1, i].set_xlim(0, 255)
+plt.tight_layout()
+plt.savefig("hasil_peningkatan.png", dpi=150)
+print("\nGambar hasil disimpan ke: hasil_peningkatan.png")
+plt.show()
